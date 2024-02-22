@@ -1,0 +1,48 @@
+const routes = {
+    '/login': { 
+      templateId: 'login', 
+      title: 'Login - Bank App',
+      onShow: () => {}
+    },
+    '/dashboard': { 
+      templateId: 'dashboard', 
+      title: 'Dashboard - Bank App',
+      onShow: () => { console.log('Dashboard is shown'); }
+    },
+    // Add other routes as needed
+  };
+  
+  function updateRoute() {
+    const path = window.location.pathname;
+    const route = routes[path];
+  
+    if (!route) {
+      return navigate('/login');
+    }
+  
+    const template = document.getElementById(route.templateId);
+    const view = template.content.cloneNode(true);
+    const app = document.getElementById('app');
+    app.innerHTML = '';
+    app.appendChild(view);
+  
+    // Update the window title
+    document.title = route.title;
+  
+    // Run the onShow function
+    route.onShow();
+  }
+  
+  function navigate(path) {
+    window.history.pushState({}, path, path);
+    updateRoute();
+  }
+  
+  window.onpopstate = () => updateRoute();
+  
+  // Update the route for the first time
+  updateRoute();
+  
+
+
+ 
