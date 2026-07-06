@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Business Command Center — Demo (mocked)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>" />
+<style>
+  :root{
+    --bg:#080b14; --bg2:#0c1120; --panel:#111827; --panel2:#0f1626;
+    --line:#1e293b; --line2:#26334a;
+    --text:#e6edf7; --muted:#8ea0bd; --dim:#63748f;
+    --cyan:#38e1c4; --gold:#f5c451; --purple:#a78bfa;
+    /* states */
+    --thriving:#34d399; --constrained:#fbbf24; --idle:#7c8aa5;
+    --underbuilt:#a78bfa; --burning:#f5554e; --fogged:#3b475e;
+    --radius:14px;
+    --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(1200px 700px at 82% -12%, rgba(56,225,196,.10), transparent 55%),
+      radial-gradient(900px 600px at 0% 0%, rgba(167,139,250,.10), transparent 50%),
+      var(--bg);
+    color:var(--text); line-height:1.5; -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  a{color:inherit}
+  .wrap{width:min(1320px,95%);margin-inline:auto}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+  /* ---------- Top bar ---------- */
+  header.top{position:sticky;top:0;z-index:40;background:rgba(8,11,20,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  header.top .wrap{display:flex;align-items:center;gap:18px;padding:14px 0;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:18px;letter-spacing:-.3px}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:grid;place-items:center;font-size:18px;box-shadow:0 4px 14px rgba(56,225,196,.35)}
+  .brand small{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.4px}
+  .top-controls{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+  .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .seg button{border:0;background:transparent;color:var(--muted);font-weight:700;font-size:13px;padding:8px 13px;border-radius:8px;cursor:pointer;transition:.15s}
+  .seg button.active{background:linear-gradient(135deg,rgba(56,225,196,.22),rgba(167,139,250,.22));color:#fff;box-shadow:inset 0 0 0 1px var(--line2)}
+  select.ctl{background:var(--panel);border:1px solid var(--line);color:var(--text);font-weight:600;font-size:13px;padding:8px 10px;border-radius:9px;cursor:pointer}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim);font-weight:700;padding-left:2px}
+
+  .btn{border:0;cursor:pointer;font-weight:700;font-size:13px;padding:9px 16px;border-radius:10px;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+  .btn-share{background:linear-gradient(135deg,var(--gold),#e0972f);color:#241a00;box-shadow:0 6px 18px rgba(245,196,81,.3)}
+  .btn-share:hover{transform:translateY(-1px)}
+  .btn-ghost{background:var(--panel);color:var(--text);border:1px solid var(--line2)}
+
+  /* ---------- Alert strip ---------- */
+  .alert-strip{background:linear-gradient(90deg,rgba(245,85,78,.18),rgba(245,85,78,.05));border-bottom:1px solid rgba(245,85,78,.35)}
+  .alert-strip .wrap{display:flex;align-items:center;gap:14px;padding:11px 0}
+  .alert-dot{width:9px;height:9px;border-radius:50%;background:var(--burning);box-shadow:0 0 0 0 rgba(245,85,78,.6);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(245,85,78,.55)}70%{box-shadow:0 0 0 10px rgba(245,85,78,0)}100%{box-shadow:0 0 0 0 rgba(245,85,78,0)}}
+  .alert-strip b{color:#ffd9d7}
+  .alert-strip .meta{margin-left:auto;display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px}
+  .alert-strip .x{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:18px;line-height:1}
+
+  /* ---------- Layout ---------- */
+  .layout{display:grid;grid-template-columns:1fr 372px;gap:20px;padding:22px 0 40px;align-items:start}
+
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .panel-h{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .panel-h h2{margin:0;font-size:15px;letter-spacing:.2px}
+  .panel-h .sub{color:var(--muted);font-size:12px}
+  .panel-h .spacer{margin-left:auto}
+  .chip{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--muted)}
+
+  /* City header */
+  .city-top{padding:16px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  .scale-badge{display:flex;align-items:center;gap:12px}
+  .scale-badge .ring{width:52px;height:52px;border-radius:14px;background:radial-gradient(circle at 35% 30%,rgba(56,225,196,.35),rgba(167,139,250,.25));display:grid;place-items:center;font-size:26px;border:1px solid var(--line2)}
+  .scale-badge .t{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:700}
+  .scale-badge .v{font-size:22px;font-weight:800;letter-spacing:-.4px}
+  .fog-meter{margin-left:auto;min-width:200px}
+  .fog-meter .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600}
+  .bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+  .bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--purple),var(--cyan));transition:width .4s ease}
+
+  /* City grid */
+  .city{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:18px}
+  .bld{position:relative;border-radius:13px;border:1px solid var(--line2);background:linear-gradient(180deg,#131c2e,#0e1626);padding:15px;overflow:hidden;min-height:186px;display:flex;flex-direction:column;transition:transform .15s ease, box-shadow .15s ease, border-color .15s}
+  .bld:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(0,0,0,.4)}
+  .bld::before{content:"";position:absolute;left:0;top:0;right:0;height:4px;background:var(--st)}
+  .bld::after{content:"";position:absolute;inset:0;opacity:.06;background:radial-gradient(circle at 80% 15%, var(--st), transparent 42%);pointer-events:none}
+  .bld .head{display:flex;align-items:center;gap:10px}
+  .bld .ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:21px;background:rgba(255,255,255,.04);border:1px solid var(--line2)}
+  .bld .name{font-weight:800;font-size:14.5px;letter-spacing:-.2px}
+  .bld .role{font-size:11px;color:var(--dim)}
+  .state-pill{position:absolute;top:13px;right:13px;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:4px 9px;border-radius:999px;color:#08110b;background:var(--st)}
+  .state-pill.dark{color:#fff}
+  .metrics{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}
+  .metrics .m{display:flex;flex-direction:column}
+  .metrics .m .k{font-size:10.5px;color:var(--muted)}
+  .metrics .m .v{font-size:14px;font-weight:700}
+  .bld .note{margin-top:auto;padding-top:11px;font-size:11.5px;color:#c3d0e6;border-top:1px dashed var(--line2)}
+  .bld .foot{margin-top:9px;display:flex;align-items:center;justify-content:space-between}
+  .conf{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid var(--line2);color:var(--muted)}
+  .conf.high{color:#9df3d5;border-color:rgba(52,211,153,.4)}
+  .conf.medium{color:#ffe09a;border-color:rgba(251,191,36,.4)}
+  .conf.low{color:#ffb4b0;border-color:rgba(245,85,78,.35)}
+  .fog-overlay{position:absolute;inset:0;background:rgba(10,14,22,.72);backdrop-filter:blur(3px);display:grid;place-items:center;text-align:center;padding:16px}
+  .fog-overlay .lock{font-size:26px;opacity:.7}
+  .fog-overlay .msg{font-size:12px;color:var(--muted);margin-top:6px;max-width:80%}
+
+  .strength{display:flex;gap:4px;margin-top:2px}
+  .strength i{width:16px;height:8px;border-radius:2px;background:var(--line2)}
+  .strength i.on{background:var(--st)}
+
+  /* Right column cards */
+  .brief-row{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px}
+  .brief-row:last-child{border-bottom:0}
+  .brief-row .ic{font-size:17px;width:26px;flex:none;text-align:center}
+  .brief-row .k{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);font-weight:700}
+  .brief-row .txt{font-size:13.5px;color:#dbe6f5}
+  .brief-row .txt b{color:#fff}
+  .brief-conf{padding:12px 18px;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.02)}
+
+  .quest{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px}
+  .quest:last-child{border-bottom:0}
+  .qnum{width:26px;height:26px;flex:none;border-radius:8px;display:grid;place-items:center;font-weight:800;font-size:13px;background:linear-gradient(135deg,var(--cyan),var(--purple));color:#04121a}
+  .quest .title{font-weight:700;font-size:13.5px}
+  .quest .why{font-size:12px;color:var(--muted);margin-top:2px}
+  .quest .qmeta{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tagx{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid var(--line2);color:var(--muted)}
+  .prio{color:#fff}
+  .prio.p1{background:rgba(245,85,78,.9);border-color:transparent}
+  .prio.p2{background:rgba(251,191,36,.9);border-color:transparent;color:#241a00}
+  .prio.p3{background:rgba(124,138,165,.7);border-color:transparent}
+  .help{margin-left:auto;font-size:11px;color:var(--cyan);background:transparent;border:1px solid rgba(56,225,196,.3);padding:4px 9px;border-radius:7px;cursor:pointer}
+  .help:hover{background:rgba(56,225,196,.1)}
+
+  /* Connector panel */
+  .conn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:18px}
+  .conn{border:1px solid var(--line2);border-radius:12px;padding:13px;background:#0e1626;display:flex;flex-direction:column;gap:9px;transition:.15s;position:relative}
+  .conn .top{display:flex;align-items:center;gap:10px}
+  .conn .cico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:17px;background:rgba(255,255,255,.05);border:1px solid var(--line2)}
+  .conn .cname{font-weight:700;font-size:13.5px}
+  .conn .csub{font-size:11px;color:var(--dim)}
+  .conn.on{border-color:rgba(52,211,153,.45);background:linear-gradient(180deg,rgba(52,211,153,.09),#0e1626)}
+  .conn .status{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
+  .conn .sdot{font-size:11px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .conn.on .sdot{color:#8ef0cf}
+  .conn .sdot::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dim)}
+  .conn.on .sdot::before{background:var(--thriving);box-shadow:0 0 8px rgba(52,211,153,.7)}
+  .emph{position:absolute;top:10px;right:11px;font-size:9px;font-weight:800;letter-spacing:.4px;color:var(--gold);border:1px solid rgba(245,196,81,.4);padding:2px 6px;border-radius:6px}
+  /* toggle */
+  .tg{position:relative;width:40px;height:22px;border-radius:999px;background:var(--line2);cursor:pointer;transition:.2s;border:0;flex:none}
+  .tg::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+  .conn.on .tg{background:var(--thriving)}
+  .conn.on .tg::after{left:20px}
+
+  .legend{display:flex;flex-wrap:wrap;gap:10px 16px;padding:14px 18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:3px}
+
+  .foot-note{color:var(--dim);font-size:11.5px;text-align:center;padding:8px 0 30px}
+  .foot-note b{color:var(--muted)}
+
+  /* ---------- Share overlay ---------- */
+  .share-mode{position:fixed;inset:0;z-index:80;background:rgba(6,9,16,.88);backdrop-filter:blur(6px);overflow:auto;padding:34px 0;display:none}
+  .share-mode.show{display:block}
+  .snap{width:min(760px,94%);margin-inline:auto;background:
+      radial-gradient(700px 400px at 90% -10%, rgba(56,225,196,.14), transparent 55%),
+      linear-gradient(180deg,#0f1729,#0b1120);border:1px solid var(--line2);border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+  .snap-h{padding:22px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px}
+  .snap-h .logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:grid;place-items:center;font-size:21px}
+  .snap-h .t1{font-weight:800;font-size:18px}
+  .snap-h .t2{font-size:12px;color:var(--muted)}
+  .snap-h .redact{margin-left:auto;font-size:11px;font-weight:700;color:var(--gold);border:1px solid rgba(245,196,81,.4);padding:5px 10px;border-radius:8px}
+  .snap-body{padding:22px 26px}
+  .snap-sec{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);font-weight:800;margin:4px 0 12px}
+  .snap-blds{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .sb{border:1px solid var(--line2);border-radius:11px;padding:12px 13px;background:#0e1626}
+  .sb .r1{display:flex;align-items:center;gap:9px}
+  .sb .r1 .ico{font-size:16px}
+  .sb .r1 .nm{font-weight:700;font-size:13px}
+  .sb .r1 .stp{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:3px 7px;border-radius:999px;color:#08110b;background:var(--st)}
+  .sb .r1 .stp.dark{color:#fff}
+  .sb .band{font-size:11px;color:var(--muted);margin-top:8px}
+  .sb .bottleneck{font-size:11.5px;color:#cdd9ec;margin-top:6px}
+  .badges{display:flex;flex-wrap:wrap;gap:9px;margin:6px 0 4px}
+  .badge{font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;border:1px solid var(--line2);background:rgba(255,255,255,.03)}
+  .snap-quests li{font-size:13px;margin-bottom:7px;color:#dbe6f5}
+  .snap-foot{padding:16px 26px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .snap-foot .disc{font-size:11px;color:var(--dim);flex:1;min-width:200px}
+  .divider{height:1px;background:var(--line);margin:20px 0}
+
+  #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(140%);background:#0e1626;border:1px solid var(--line2);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;box-shadow:var(--shadow);z-index:120;transition:transform .3s ease}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:1080px){
+    .layout{grid-template-columns:1fr}
+    .city{grid-template-columns:repeat(2,1fr)}
+    .conn-grid{grid-template-columns:repeat(2,1fr)}
+  }
+  @media(max-width:640px){
+    .city,.conn-grid,.snap-blds{grid-template-columns:1fr}
+    .metrics{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <span class="logo">🏙️</span>
+      <div>Command Center<small>Business empire · mocked demo</small></div>
+    </div>
+    <div class="top-controls">
+      <div class="field">
+        <label>Archetype</label>
+        <div class="seg" id="arch-seg">
+          <button data-arch="saas" class="active">B2B SaaS</button>
+          <button data-arch="services">B2B Services</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Revenue stage</label>
+        <select class="ctl" id="stage">
+          <option value="seed">$1–3M · Seed engine</option>
+          <option value="growth" selected>$3–8M · Growth</option>
+          <option value="scale">$8–20M · Scale</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Operational maturity</label>
+        <select class="ctl" id="maturity">
+          <option value="emerging">Emerging</option>
+          <option value="repeatable" selected>Repeatable</option>
+          <option value="systematized">Systematized</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="btn btn-share" id="share-btn">📤 Share mode</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="alert-strip" id="alert-strip">
+  <div class="wrap">
+    <span class="alert-dot"></span>
+    <div><b id="alert-title">Critical:</b> <span id="alert-text"></span></div>
+    <div class="meta">
+      <span class="chip">Confidence: High</span>
+      <span>Real-time alerts fire only for existential or fast-decay events</span>
+      <button class="x" id="alert-x" title="Dismiss">×</button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="layout">
+
+    <!-- LEFT: City -->
+    <section class="panel" aria-label="Starter city">
+      <div class="city-top">
+        <div class="scale-badge">
+          <div class="ring" id="scale-emoji">🏘️</div>
+          <div>
+            <div class="t">Your empire · <span id="arch-label">B2B SaaS</span></div>
+            <div class="v" id="scale-label">Town</div>
+          </div>
+        </div>
+        <div class="fog-meter">
+          <div class="lab"><span>Map visibility</span><span id="vis-pct">33%</span></div>
+          <div class="bar"><i id="vis-bar" style="width:33%"></i></div>
+        </div>
+      </div>
+      <div class="city" id="city"></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <!-- RIGHT: Briefing + Quests + Connectors -->
+    <aside style="display:flex;flex-direction:column;gap:20px">
+      <section class="panel">
+        <div class="panel-h">
+          <span style="font-size:18px">🌅</span>
+          <div><h2>Daily Empire Briefing</h2><div class="sub" id="brief-date"></div></div>
+        </div>
+        <div id="briefing"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-h">
+          <span style="font-size:18px">📜</span>
+          <h2>Quest Board</h2>
+          <span class="spacer"></span>
+          <span class="chip">Next 7 days</span>
+        </div>
+        <div id="quests"></div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- Connector panel full width -->
+  <section class="panel" style="margin-bottom:22px">
+    <div class="panel-h">
+      <span style="font-size:18px">🔌</span>
+      <div><h2>Connectors</h2><div class="sub">Read-only · mocked. Connectors lift fog of war and raise confidence — they don't create status by themselves.</div></div>
+      <span class="spacer"></span>
+      <span class="chip" id="conn-count">2 / 6 connected</span>
+    </div>
+    <div class="conn-grid" id="connectors"></div>
+  </section>
+
+  <div class="foot-note">
+    Demo prototype · <b>all data is mocked</b> · no live OAuth, no external API calls, no writes. Read-only first pass.
+  </div>
+</main>
+
+<!-- SHARE MODE -->
+<div class="share-mode" id="share-mode">
+  <div class="snap" id="snap"></div>
+</div>
+
+<div id="toast">Copied ✓</div>
+
+<script>
+/* ============================================================= *
+ *  Business Command Center — mocked engine (read-only)          *
+ * ============================================================= */
+
+const STATE = {
+  arch: 'saas',
+  stage: 'growth',
+  maturity: 'repeatable',
+  connectors: { finance:true, hubspot:true, mixpanel:false, gong:false, ga4:false, ahrefs:false },
+};
+
+const STATE_META = {
+  thriving:   { label:'Thriving',    strength:5, band:'Top 20–40% (est.)',  dark:false },
+  constrained:{ label:'Constrained', strength:3, band:'Middle 40–60% (est.)',dark:true  },
+  idle:       { label:'Idle',        strength:2, band:'Bottom 40–60% (est.)',dark:true  },
+  underbuilt: { label:'Underbuilt',  strength:2, band:'Under-developed',     dark:true  },
+  burning:    { label:'Burning',     strength:1, band:'Bottom 20% (est.)',   dark:true  },
+  fogged:     { label:'Fogged',      strength:0, band:'Not yet visible',     dark:true  },
+};
+
+const CONNECTORS = [
+  { id:'finance',  icon:'💳', sub:'Finance',          nameSaas:'Stripe',  nameServ:'QuickBooks' },
+  { id:'hubspot',  icon:'🧲', sub:'CRM / pipeline',   name:'HubSpot' },
+  { id:'mixpanel', icon:'📊', sub:'Product analytics',name:'Mixpanel' },
+  { id:'gong',     icon:'🎙️', sub:'Revenue intel',    name:'Gong' },
+  { id:'ga4',      icon:'🌐', sub:'Web & search',     name:'GA4 / Search Console' },
+  { id:'ahrefs',   icon:'🧭', sub:'SEO terrain',      name:'Ahrefs' },
+];
+
+// connector emphasis per archetype (spec)
+const EMPHASIS = {
+  saas:     ['finance','hubspot','mixpanel','ga4','ahrefs'],
+  services: ['finance','hubspot','gong','ga4','ahrefs'],
+};
+
+// Building definitions per archetype. `state` is the authored (repeatable-maturity) diagnosis.
+const BUILDINGS = {
+  saas: [
+    { id:'finance', name:'Finance Base', role:'Cash · burn · runway · margin', icon:'🏦', feeds:['finance'], state:'thriving',
+      metrics:[['MRR','€142k'],['Net burn','€68k/mo'],['Runway','14 mo'],['Gross margin','81%']],
+      note:'Runway healthy at 14 months and margin strong for SaaS. Balance sheet is a position of strength.' },
+    { id:'sales', name:'Sales Engine', role:'Pipeline · conversion · velocity', icon:'⚔️', feeds:['hubspot','gong'], state:'constrained',
+      metrics:[['Pipeline','€880k'],['Win rate','22%'],['Cycle','38 d'],['Coverage','2.1×']],
+      note:'Coverage is 2.1× vs a 3× target and win rate is slipping in mid-market. Top-of-funnel is the constraint.' },
+    { id:'demand', name:'Demand Tower', role:'Traffic · search · inbound', icon:'📡', feeds:['ga4','ahrefs'], state:'thriving',
+      metrics:[['Sessions','24k/mo'],['Signups','640/mo'],['MQL→SQL','18%'],['Organic share','41%']],
+      note:'Organic demand is compounding and branded search is rising — a durable advantage to press.' },
+    { id:'product', name:'Product Factory', role:'Activation · retention · expansion', icon:'🏭', feeds:['mixpanel','finance'], state:'burning',
+      metrics:[['Activation','54%'],['30-d retention','82%'],['PQL dropoff','46%'],['Expansion NRR','109%']],
+      note:'Activation leak: 46% of signups never reach the aha moment in week 1 — the single largest revenue drag.' },
+    { id:'health', name:'Customer Health Hall', role:'Retention · churn · expansion', icon:'💚', feeds:['hubspot','mixpanel'], state:'constrained',
+      metrics:[['Logo churn','2.1%/mo'],['GRR','88%'],['At-risk ARR','€61k'],['Support load','High']],
+      note:'Churn is concentrated in sub-20-seat accounts, pointing at an onboarding gap rather than product fit.' },
+    { id:'market', name:'Market Scouting Tower', role:'Competitors · SEO · market weather', icon:'🔭', feeds:['ahrefs','ga4'], state:'idle',
+      metrics:[['Competitor moves','3'],['Share of voice','12%'],['Keyword gap','240'],['Weather','Warming']],
+      note:'Two competitors raised recently and you are under-indexing on comparison / "alternative" keywords.' },
+  ],
+  services: [
+    { id:'finance', name:'Finance Base', role:'Cash · margin · collections', icon:'🏦', feeds:['finance'], state:'constrained',
+      metrics:[['Revenue','€1.8M'],['Net margin','14%'],['DSO','52 d'],['Cash','€240k']],
+      note:'Margin is thin at 14% and collections are slow (DSO 52 days), tying up cash you could deploy.' },
+    { id:'sales', name:'Sales Engine', role:'Pipeline · conversion · velocity', icon:'⚔️', feeds:['hubspot','gong'], state:'constrained',
+      metrics:[['Pipeline','€1.2M'],['Win rate','31%'],['Cycle','46 d'],['Coverage','1.8×']],
+      note:'Pipeline is founder-network dependent with thin outbound. Coverage of 1.8× leaves the forecast fragile.' },
+    { id:'demand', name:'Demand Tower', role:'Traffic · search · inbound', icon:'📡', feeds:['ga4','ahrefs'], state:'underbuilt',
+      metrics:[['Sessions','9k/mo'],['Leads','120/mo'],['Inbound conv','6%'],['Organic share','28%']],
+      note:'The demand engine is underbuilt — most pipeline comes from the founder network, not a repeatable channel.' },
+    { id:'delivery', name:'Delivery Guild', role:'Utilization · margin · delivery', icon:'🛠️', feeds:['finance','hubspot'], state:'burning',
+      metrics:[['Utilization','74%'],['Project margin','22%'],['On-time','88%'],['Referral rate','31%']],
+      note:'Two active projects are underwater and utilization spikes are causing margin leakage right now.' },
+    { id:'health', name:'Customer Health Hall', role:'Retention · referrals · CSAT', icon:'💚', feeds:['hubspot','gong'], state:'thriving',
+      metrics:[['Net retention','104%'],['At-risk accts','2'],['CSAT','4.4/5'],['Referral rate','31%']],
+      note:'Strong referrals and retention are your durable moat — the healthiest part of the engine.' },
+    { id:'market', name:'Market Scouting Tower', role:'Competitors · SEO · market weather', icon:'🔭', feeds:['ahrefs','ga4'], state:'idle',
+      metrics:[['Competitor moves','1'],['Share of voice','8%'],['Keyword gap','180'],['Weather','Stable']],
+      note:'Market visibility is low and scouting is under-invested — you are flying with limited radar.' },
+  ],
+};
+
+// Quests keyed by building id + archetype
+const QUESTS = {
+  saas: {
+    product:  { title:'Fix the week-1 activation leak', why:'46% of signups never reach the aha moment — the biggest single revenue drag.', effort:'2–3 wk', building:'Product Factory' },
+    sales:    { title:'Rebuild pipeline coverage to 3×', why:'Coverage sits at 2.1× and win rate is slipping in mid-market.', effort:'3–4 wk', building:'Sales Engine' },
+    health:   { title:'Close the onboarding gap for small accounts', why:'Churn is concentrated in sub-20-seat logos.', effort:'2 wk', building:'Customer Health' },
+    market:   { title:'Attack comparison & "alternative" keywords', why:'You under-index on terms two funded competitors are winning.', effort:'Ongoing', building:'Market Scouting' },
+    demand:   { title:'Press the compounding organic advantage', why:'Branded search is rising — add capacity to the winning channel.', effort:'Ongoing', building:'Demand Tower' },
+    finance:  { title:'Convert margin strength into runway optionality', why:'Strong margin gives room to fund the fixes above.', effort:'1 wk', building:'Finance Base' },
+  },
+  services: {
+    delivery: { title:'Stop the margin leak on underwater projects', why:'Two projects are below target margin while utilization spikes.', effort:'2 wk', building:'Delivery Guild' },
+    finance:  { title:'Tighten collections (DSO 52 → 35 days)', why:'Slow collections are tying up cash you could redeploy.', effort:'2–3 wk', building:'Finance Base' },
+    sales:    { title:'Stand up a repeatable outbound motion', why:'Pipeline is founder-network dependent and forecast is fragile.', effort:'4–6 wk', building:'Sales Engine' },
+    demand:   { title:'Build a real demand engine', why:'Most pipeline is not repeatable — de-risk founder dependency.', effort:'Ongoing', building:'Demand Tower' },
+    market:   { title:'Invest in market scouting', why:'Low radar on competitors and SEO terrain leaves you exposed.', effort:'Ongoing', building:'Market Scouting' },
+    health:   { title:'Systematize your referral moat', why:'Referrals are strong — turn them into a repeatable channel.', effort:'2 wk', building:'Customer Health' },
+  },
+};
+
+const SCALE_LABELS = ['Outpost','Village','Town','City','Empire'];
+const SCALE_EMOJI  = ['⛺','🏘️','🏙️','🌆','👑'];
+const SEVERITY = { burning:0, constrained:1, underbuilt:2, idle:3, thriving:4, fogged:9 };
+
+/* ---------- derivations ---------- */
+
+function connectedCount(){ return Object.values(STATE.connectors).filter(Boolean).length; }
+
+function visibleFeeds(feeds){ return feeds.filter(f => STATE.connectors[f]); }
+
+function confidenceFor(feeds){
+  const n = visibleFeeds(feeds).length;
+  if(n === 0) return 'fogged';
+  if(n >= 2)  return STATE.maturity === 'systematized' ? 'high' : 'medium';
+  return feeds.length === 1 ? 'medium' : 'low';   // single-source building = medium
+}
+
+// apply maturity to authored state (burning always persists as the anchor diagnosis)
+function maturityAdjust(state){
+  if(state === 'burning') return 'burning';
+  if(STATE.maturity === 'emerging'){
+    if(state === 'thriving')   return 'constrained';
+    if(state === 'idle')       return 'underbuilt';
+  }
+  if(STATE.maturity === 'systematized'){
+    if(state === 'constrained')return 'thriving';
+    if(state === 'underbuilt') return 'constrained';
+    if(state === 'idle')       return 'thriving';
+  }
+  return state;
+}
+
+function computeBuildings(){
+  return BUILDINGS[STATE.arch].map(b => {
+    const vis = visibleFeeds(b.feeds);
+    const fogged = vis.length === 0;
+    const state = fogged ? 'fogged' : maturityAdjust(b.state);
+    const conf = confidenceFor(b.feeds);
+    return { ...b, state, fogged, confidence: conf, visibleFeeds: vis };
+  });
+}
+
+function computeScale(){
+  const stageBase = { seed:1, growth:2, scale:3 }[STATE.stage];
+  const matAdj = { emerging:-1, repeatable:0, systematized:1 }[STATE.maturity];
+  const n = connectedCount();
+  const connAdj = n >= 4 ? 1 : (n <= 1 ? -1 : 0);
+  const idx = Math.max(0, Math.min(4, stageBase + matAdj + connAdj));
+  return { idx, label: SCALE_LABELS[idx], emoji: SCALE_EMOJI[idx] };
+}
+
+function overallConfidence(){
+  const n = connectedCount();
+  if(n <= 1) return 'Low';
+  if(n >= 4) return STATE.maturity === 'systematized' ? 'High' : 'Medium';
+  return 'Medium';
+}
+
+function connLabel(c){ return c.name || (STATE.arch==='saas' ? c.nameSaas : c.nameServ); }
+
+/* ---------- rendering ---------- */
+
+function stateVar(s){ return `var(--${s})`; }
+
+function renderCity(blds){
+  const el = document.getElementById('city');
+  el.innerHTML = blds.map(b=>{
+    const meta = STATE_META[b.state];
+    if(b.fogged){
+      const need = b.feeds.map(f=>connLabel(CONNECTORS.find(c=>c.id===f))).join(' or ');
+      return `<div class="bld" style="--st:${stateVar('fogged')}">
+        <div class="head"><div class="ico">${b.icon}</div><div><div class="name">${b.name}</div><div class="role">${b.role}</div></div></div>
+        <div class="fog-overlay"><div><div class="lock">🌫️🔒</div><div class="msg">Fogged — connect <b>${need}</b> to reveal this building.</div></div></div>
+      </div>`;
+    }
+    const pillDark = meta.dark ? 'dark' : '';
+    return `<div class="bld" style="--st:${stateVar(b.state)}">
+      <span class="state-pill ${pillDark}">${meta.label}</span>
+      <div class="head"><div class="ico">${b.icon}</div><div><div class="name">${b.name}</div><div class="role">${b.role}</div></div></div>
+      <div class="metrics">${b.metrics.map(m=>`<div class="m"><span class="k">${m[0]}</span><span class="v">${m[1]}</span></div>`).join('')}</div>
+      <div class="note">${b.note}</div>
+      <div class="foot">
+        <span class="conf ${b.confidence}">Confidence: ${b.confidence[0].toUpperCase()+b.confidence.slice(1)}</span>
+        <div class="strength" title="Relative strength">${[0,1,2,3,4].map(i=>`<i class="${i<meta.strength?'on':''}"></i>`).join('')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderLegend(){
+  const items = [
+    ['thriving','Thriving'],['constrained','Constrained'],['idle','Idle'],
+    ['underbuilt','Underbuilt'],['burning','Burning'],['fogged','Fogged'],
+  ];
+  document.getElementById('legend').innerHTML =
+    items.map(([k,l])=>`<span><i style="background:var(--${k})"></i>${l}</span>`).join('');
+}
+
+function renderScale(){
+  const s = computeScale();
+  document.getElementById('scale-label').textContent = s.label;
+  document.getElementById('scale-emoji').textContent = s.emoji;
+  document.getElementById('arch-label').textContent = STATE.arch==='saas'?'B2B SaaS':'B2B Services';
+  const n = connectedCount();
+  const pct = Math.round(n/CONNECTORS.length*100);
+  document.getElementById('vis-pct').textContent = pct+'%';
+  document.getElementById('vis-bar').style.width = pct+'%';
+}
+
+function renderBriefing(blds){
+  const visible = blds.filter(b=>!b.fogged);
+  const fire = visible.find(b=>b.state==='burning');
+  const blocked = visible.filter(b=>b.state==='constrained' || b.state==='underbuilt')
+                         .sort((a,b)=>SEVERITY[a.state]-SEVERITY[b.state])[0];
+  const opportunity = visible.find(b=>b.state==='idle') || visible.find(b=>b.state==='thriving');
+  const quest = buildQuests(blds)[0];
+  const conf = overallConfidence();
+
+  const fogged = blds.filter(b=>b.fogged);
+  const rows = [];
+  rows.push(['🔥','On fire', fire
+     ? `<b>${fire.name}</b> — ${fire.note}`
+     : `Nothing critical is burning right now.`]);
+  rows.push(['⛔','Growth blocked', blocked
+     ? `<b>${blocked.name}</b> — ${blocked.note}`
+     : `No hard constraints visible with current data.`]);
+  rows.push(['🧭','Expansion opportunity', opportunity
+     ? `<b>${opportunity.name}</b> — ${opportunity.state==='idle'
+          ? 'an idle building you can activate for upside.'
+          : 'a position of strength worth pressing further.'}`
+     : `Connect more systems to surface expansion plays.`]);
+  rows.push(['🎯','Highest-leverage quest', quest
+     ? `<b>${quest.title}</b> — ${quest.why}`
+     : `—`]);
+  if(fogged.length){
+    rows.push(['🌫️','Fog of war', `${fogged.length} building${fogged.length>1?'s':''} still fogged (${fogged.map(f=>f.name.replace(/ (Base|Engine|Tower|Hall|Guild|Factory)$/,'')).join(', ')}). Connect their sources to raise confidence.`]);
+  }
+
+  document.getElementById('briefing').innerHTML =
+    rows.map(r=>`<div class="brief-row"><div class="ic">${r[0]}</div><div><div class="k">${r[1]}</div><div class="txt">${r[2]}</div></div></div>`).join('')
+    + `<div class="brief-conf"><span class="ic" style="font-size:15px">📶</span>
+        <div class="txt" style="font-size:12.5px;color:var(--muted)">Overall diagnosis confidence:
+        <b class="conf ${conf.toLowerCase()}" style="margin-left:4px">${conf}</b> — conservative until more sources are connected.</div></div>`;
+
+  const d = new Date();
+  document.getElementById('brief-date').textContent =
+    d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}) + ' · daily cadence';
+}
+
+function buildQuests(blds){
+  const visible = blds.filter(b=>!b.fogged);
+  const ranked = [...visible].sort((a,b)=>SEVERITY[a.state]-SEVERITY[b.state]);
+  const out = [];
+  for(const b of ranked){
+    const q = QUESTS[STATE.arch][b.id];
+    if(!q) continue;
+    // Skip pure "leverage strength" quests unless we need to fill to 3
+    out.push({ ...q, state:b.state, confidence:b.confidence });
+    if(out.length >= 3) break;
+  }
+  // if fog is hiding things, suggest connecting as a quest
+  if(out.length < 3){
+    const fogged = blds.find(b=>b.fogged);
+    if(fogged){
+      const need = fogged.feeds.map(f=>connLabel(CONNECTORS.find(c=>c.id===f))).join(' / ');
+      out.push({ title:`Connect ${need} to lift the fog`, why:`Reveals ${fogged.name} and raises diagnosis confidence.`, effort:'15 min', building:'Connectors', state:'idle', confidence:'low' });
+    }
+  }
+  return out.slice(0,3);
+}
+
+function renderQuests(blds){
+  const qs = buildQuests(blds);
+  const prio = ['p1','p2','p3'];
+  const plabel = ['High','Medium','Low'];
+  document.getElementById('quests').innerHTML = qs.map((q,i)=>`
+    <div class="quest">
+      <div class="qnum">${i+1}</div>
+      <div style="flex:1">
+        <div class="title">${q.title}</div>
+        <div class="why">${q.why}</div>
+        <div class="qmeta">
+          <span class="tagx prio ${prio[i]}">${plabel[i]} priority</span>
+          <span class="tagx">🏗️ ${q.building}</span>
+          <span class="tagx">⏱️ ${q.effort}</span>
+          <span class="tagx conf ${q.confidence}">Conf: ${q.confidence[0].toUpperCase()+q.confidence.slice(1)}</span>
+          <button class="help" onclick="toast('Marketplace routing is disabled in this mocked demo')">Get help →</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderConnectors(){
+  const emph = EMPHASIS[STATE.arch];
+  document.getElementById('connectors').innerHTML = CONNECTORS.map(c=>{
+    const on = STATE.connectors[c.id];
+    const isEmph = emph.includes(c.id);
+    return `<div class="conn ${on?'on':''}">
+      ${isEmph?'<span class="emph">KEY FOR '+(STATE.arch==='saas'?'SAAS':'SERVICES')+'</span>':''}
+      <div class="top"><div class="cico">${c.icon}</div><div><div class="cname">${connLabel(c)}</div><div class="csub">${c.sub}</div></div></div>
+      <div class="status">
+        <span class="sdot">${on?'Connected · read-only':'Not connected'}</span>
+        <button class="tg" aria-label="Toggle ${connLabel(c)}" onclick="toggleConn('${c.id}')"></button>
+      </div>
+    </div>`;
+  }).join('');
+  const n = connectedCount();
+  document.getElementById('conn-count').textContent = `${n} / ${CONNECTORS.length} connected`;
+}
+
+function renderAlert(blds){
+  const fire = blds.find(b=>!b.fogged && b.state==='burning');
+  const strip = document.getElementById('alert-strip');
+  if(!fire || strip.dataset.dismissed==='1'){ strip.style.display = fire ? strip.style.display : 'none'; if(!fire) strip.style.display='none'; return; }
+  strip.style.display='block';
+  const msg = STATE.arch==='saas'
+    ? 'Product Factory is burning — activation leak is draining an estimated ~€18k of new MRR per month. Fast-decay; fix before it compounds.'
+    : 'Delivery Guild is burning — two projects are underwater, an estimated ~€22k margin leak this quarter. Act before delivery slips further.';
+  document.getElementById('alert-text').textContent = msg;
+}
+
+/* ---------- share mode ---------- */
+
+const BADGES = {
+  saas: [
+    {cond:b=>b.id==='demand'&&b.state==='thriving', txt:'🌱 Organic Demand Compounder'},
+    {cond:b=>b.id==='finance'&&b.state==='thriving', txt:'🏦 Fortified Balance Sheet'},
+    {cond:b=>b.id==='product'&&b.metrics, txt:null},
+  ],
+  services: [
+    {cond:b=>b.id==='health'&&b.state==='thriving', txt:'🤝 Referral Moat'},
+    {cond:b=>b.id==='finance'&&b.state==='thriving', txt:'💰 Disciplined Cash Engine'},
+  ],
+};
+
+function renderShare(){
+  const blds = computeBuildings();
+  const scale = computeScale();
+  const conf = overallConfidence();
+  const visible = blds.filter(b=>!b.fogged);
+
+  const badges = [];
+  badges.push(`${STATE.arch==='saas'?'💻 B2B SaaS':'🧰 B2B Services'}`);
+  badges.push(`${scale.emoji} ${scale.label}`);
+  (BADGES[STATE.arch]||[]).forEach(bd=>{
+    const hit = visible.find(bd.cond);
+    if(hit && bd.txt) badges.push(bd.txt);
+  });
+
+  const bottlenecks = visible
+    .filter(b=>b.state==='burning'||b.state==='constrained'||b.state==='underbuilt')
+    .sort((a,b)=>SEVERITY[a.state]-SEVERITY[b.state])
+    .slice(0,3)
+    .map(b=>publicBottleneck(b));
+
+  const quests = buildQuests(blds);
+
+  const sbHtml = blds.map(b=>{
+    const meta = STATE_META[b.state];
+    const stp = b.fogged ? 'Fogged' : meta.label;
+    return `<div class="sb" style="--st:${stateVar(b.state)}">
+      <div class="r1"><span class="ico">${b.icon}</span><span class="nm">${b.name.replace(/ (Base|Engine|Tower|Hall|Guild|Factory)$/,'')}</span>
+        <span class="stp ${meta.dark?'dark':''}">${stp}</span></div>
+      <div class="strength" style="margin-top:9px">${[0,1,2,3,4].map(i=>`<i class="${i<meta.strength?'on':''}"></i>`).join('')}</div>
+      <div class="band">${b.fogged?'Not yet visible':meta.band}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('snap').innerHTML = `
+    <div class="snap-h">
+      <div class="logo">${scale.emoji}</div>
+      <div><div class="t1">My Command Center</div><div class="t2">${STATE.arch==='saas'?'B2B SaaS':'B2B Services'} · ${scale.label} · diagnosis confidence ${conf}</div></div>
+      <div class="redact">🔒 numbers redacted</div>
+    </div>
+    <div class="snap-body">
+      <div class="snap-sec">Empire map · relative building health</div>
+      <div class="snap-blds">${sbHtml}</div>
+
+      <div class="divider"></div>
+      <div class="snap-sec">Top bottlenecks</div>
+      <div class="badges">${bottlenecks.map(b=>`<span class="badge" style="border-color:rgba(245,85,78,.35)">⚠️ ${b}</span>`).join('') || '<span class="badge">No hard constraints visible</span>'}</div>
+
+      <div class="snap-sec" style="margin-top:18px">This week's quests</div>
+      <ul class="snap-quests" style="padding-left:18px;margin:0">
+        ${quests.map(q=>`<li><b>${q.title}</b> <span style="color:var(--dim)">· ${q.building}</span></li>`).join('')}
+      </ul>
+
+      <div class="snap-sec" style="margin-top:18px">Badges</div>
+      <div class="badges">${badges.map(b=>`<span class="badge">${b}</span>`).join('')}</div>
+    </div>
+    <div class="snap-foot">
+      <div class="disc">Shareable snapshot. Raw revenue, cash, customer & deal names, and exact pipeline values are hidden by default — only relative strengths, bottlenecks and confidence are shown.</div>
+      <button class="btn btn-share" onclick="toast('Mock share link copied ✓')">🔗 Copy share link</button>
+      <button class="btn btn-ghost" onclick="closeShare()">← Back to command center</button>
+    </div>`;
+}
+
+function publicBottleneck(b){
+  const map = {
+    product:'Activation leak (SaaS)', sales:'Thin pipeline coverage', health:'Onboarding-driven churn',
+    delivery:'Project margin leakage', finance:'Slow collections', demand:'Under-built demand engine',
+    market:'Low market visibility',
+  };
+  return map[b.id] || b.name;
+}
+
+/* ---------- events ---------- */
+
+function render(){
+  const blds = computeBuildings();
+  renderScale();
+  renderCity(blds);
+  renderBriefing(blds);
+  renderQuests(blds);
+  renderConnectors();
+  renderAlert(blds);
+}
+
+function toggleConn(id){
+  STATE.connectors[id] = !STATE.connectors[id];
+  document.getElementById('alert-strip').dataset.dismissed='0';
+  render();
+}
+
+document.getElementById('arch-seg').addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  STATE.arch = btn.dataset.arch;
+  [...e.currentTarget.children].forEach(c=>c.classList.toggle('active', c===btn));
+  document.getElementById('alert-strip').dataset.dismissed='0';
+  render();
+});
+document.getElementById('stage').addEventListener('change', e=>{ STATE.stage=e.target.value; render(); });
+document.getElementById('maturity').addEventListener('change', e=>{ STATE.maturity=e.target.value; render(); });
+document.getElementById('alert-x').addEventListener('click', ()=>{ document.getElementById('alert-strip').dataset.dismissed='1'; document.getElementById('alert-strip').style.display='none'; });
+
+document.getElementById('share-btn').addEventListener('click', ()=>{
+  renderShare();
+  document.getElementById('share-mode').classList.add('show');
+});
+function closeShare(){ document.getElementById('share-mode').classList.remove('show'); }
+document.getElementById('share-mode').addEventListener('click', e=>{ if(e.target.id==='share-mode') closeShare(); });
+
+let toastTimer;
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1900);
+}
+
+renderLegend();
+render();
+</script>
+</body>
+</html>
