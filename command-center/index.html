@@ -155,6 +155,10 @@
   .conn.on .tg{background:var(--thriving)}
   .conn.on .tg::after{left:20px}
 
+  .bol-live{margin-top:2px;font-size:11px;color:#cdd9ec;background:rgba(56,225,196,.06);border:1px solid var(--line2);border-radius:8px;padding:7px 9px;line-height:1.4}
+  .bol-live b{color:#fff}
+  .bol-chip{margin-top:9px;font-size:11px;color:#cdd9ec;background:rgba(245,196,81,.08);border:1px solid rgba(245,196,81,.28);border-radius:7px;padding:5px 8px;display:inline-flex;align-items:center;gap:6px}
+  .bol-chip b{color:#fff}
   .legend{display:flex;flex-wrap:wrap;gap:10px 16px;padding:14px 18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .legend i{width:10px;height:10px;border-radius:3px}
@@ -333,8 +337,11 @@ const STATE = {
   arch: 'saas',
   stage: 'growth',
   maturity: 'repeatable',
-  connectors: { finance:true, hubspot:true, mixpanel:false, gong:false, ga4:false, ahrefs:false },
+  connectors: { bol:false, finance:true, hubspot:true, mixpanel:false, gong:false, ga4:false, ahrefs:false },
 };
+
+// bol.com live-connection state (populated from the local read-only backend, if present)
+let BOL = { status:null, summary:null };
 
 const STATE_META = {
   thriving:   { label:'Thriving',    strength:5, band:'Top 20–40% (est.)',  dark:false },
@@ -346,6 +353,7 @@ const STATE_META = {
 };
 
 const CONNECTORS = [
+  { id:'bol',      icon:'🛒', sub:'Marketplace orders', name:'bol.com', live:true },
   { id:'finance',  icon:'💳', sub:'Finance',          nameSaas:'Stripe',  nameServ:'QuickBooks' },
   { id:'hubspot',  icon:'🧲', sub:'CRM / pipeline',   name:'HubSpot' },
   { id:'mixpanel', icon:'📊', sub:'Product analytics',name:'Mixpanel' },
@@ -356,14 +364,14 @@ const CONNECTORS = [
 
 // connector emphasis per archetype (spec)
 const EMPHASIS = {
-  saas:     ['finance','hubspot','mixpanel','ga4','ahrefs'],
-  services: ['finance','hubspot','gong','ga4','ahrefs'],
+  saas:     ['bol','finance','hubspot','mixpanel','ga4','ahrefs'],
+  services: ['bol','finance','hubspot','gong','ga4','ahrefs'],
 };
 
 // Building definitions per archetype. `state` is the authored (repeatable-maturity) diagnosis.
 const BUILDINGS = {
   saas: [
-    { id:'finance', name:'Finance Base', role:'Cash · burn · runway · margin', icon:'🏦', feeds:['finance'], state:'thriving',
+    { id:'finance', name:'Finance Base', role:'Cash · burn · runway · margin', icon:'🏦', feeds:['finance','bol'], state:'thriving',
       metrics:[['MRR','€142k'],['Net burn','€68k/mo'],['Runway','14 mo'],['Gross margin','81%']],
       note:'Runway healthy at 14 months and margin strong for SaaS. Balance sheet is a position of strength.' },
     { id:'sales', name:'Sales Engine', role:'Pipeline · conversion · velocity', icon:'⚔️', feeds:['hubspot','gong'], state:'constrained',
@@ -383,7 +391,7 @@ const BUILDINGS = {
       note:'Two competitors raised recently and you are under-indexing on comparison / "alternative" keywords.' },
   ],
   services: [
-    { id:'finance', name:'Finance Base', role:'Cash · margin · collections', icon:'🏦', feeds:['finance'], state:'constrained',
+    { id:'finance', name:'Finance Base', role:'Cash · margin · collections', icon:'🏦', feeds:['finance','bol'], state:'constrained',
       metrics:[['Revenue','€1.8M'],['Net margin','14%'],['DSO','52 d'],['Cash','€240k']],
       note:'Margin is thin at 14% and collections are slow (DSO 52 days), tying up cash you could deploy.' },
     { id:'sales', name:'Sales Engine', role:'Pipeline · conversion · velocity', icon:'⚔️', feeds:['hubspot','gong'], state:'constrained',
@@ -504,6 +512,7 @@ function renderCity(blds){
       <span class="state-pill ${pillDark}">${meta.label}</span>
       <div class="head"><div class="ico">${b.icon}</div><div><div class="name">${b.name}</div><div class="role">${b.role}</div></div></div>
       <div class="metrics">${b.metrics.map(m=>`<div class="m"><span class="k">${m[0]}</span><span class="v">${m[1]}</span></div>`).join('')}</div>
+      ${b.id==='finance' && STATE.connectors.bol ? `<div class="bol-chip">${bolChipText()}</div>` : ''}
       <div class="note">${b.note}</div>
       <div class="foot">
         <span class="conf ${b.confidence}">Confidence: ${b.confidence[0].toUpperCase()+b.confidence.slice(1)}</span>
@@ -628,6 +637,7 @@ function renderConnectors(){
         <span class="sdot">${on?'Connected · read-only':'Not connected'}</span>
         <button class="tg" aria-label="Toggle ${connLabel(c)}" onclick="toggleConn('${c.id}')"></button>
       </div>
+      ${c.id==='bol' && on ? `<div class="bol-live">${bolLiveText()}</div>` : ''}
     </div>`;
   }).join('');
   const n = connectedCount();
@@ -746,6 +756,50 @@ function toggleConn(id){
   STATE.connectors[id] = !STATE.connectors[id];
   document.getElementById('alert-strip').dataset.dismissed='0';
   render();
+  if(id==='bol' && STATE.connectors.bol) refreshBol();
+}
+
+/* ---------- bol.com live connector (talks to local read-only backend) ---------- */
+function fmt(n){ return (Number(n)||0).toLocaleString('nl-NL',{maximumFractionDigits:0}); }
+
+function bolLiveText(){
+  const st = BOL.status;
+  if(!st || st.mode==='offline')
+    return '⚠️ Offline preview — start the local server (<span class="mono">node server/server.js</span>) to connect the bol.com API.';
+  if(st.mode==='live'){
+    const s = BOL.summary;
+    if(s && s.mode==='live')
+      return `🟢 <b>Live · read-only</b> — ${fmt(s.openOrders)} open orders · €${fmt(s.openOrderValue)} in flight · ${fmt(s.openReturns)} open returns`;
+    return '🟢 <b>Live · read-only</b> — fetching orders…';
+  }
+  // mock mode served by the backend
+  const s = BOL.summary;
+  return `🟡 <b>Mock data</b>${s?` — ${fmt(s.openOrders)} open orders · €${fmt(s.openOrderValue)} in flight`:''} <span class="mono">(add credentials + BOL_LIVE=true to go live)</span>`;
+}
+
+function bolChipText(){
+  const s = BOL.summary;
+  if(s && s.openOrders!=null){
+    const live = s.mode==='live';
+    return `🛒 bol.com <b>${live?'live':'mock'}</b>: ${fmt(s.openOrders)} open orders · €${fmt(s.openOrderValue)} in flight`;
+  }
+  return '🛒 bol.com connected · read-only';
+}
+
+async function fetchBolStatus(){
+  try{
+    const r = await fetch('/api/bol/status'); if(!r.ok) throw 0;
+    BOL.status = await r.json();
+    if(STATE.connectors.bol) await refreshBol(); else render();
+  }catch(_){ BOL.status = { mode:'offline' }; render(); }
+}
+
+async function refreshBol(){
+  try{
+    const r = await fetch('/api/bol/summary'); if(!r.ok) throw 0;
+    BOL.summary = await r.json();
+  }catch(_){ if(!BOL.status) BOL.status = { mode:'offline' }; }
+  render();
 }
 
 document.getElementById('arch-seg').addEventListener('click', e=>{
@@ -774,6 +828,7 @@ function toast(msg){
 
 renderLegend();
 render();
+fetchBolStatus();
 </script>
 </body>
 </html>
